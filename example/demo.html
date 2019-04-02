@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="EUC-KR">
+<title>Insert title here</title>
+
+<style>
+thead th {
+  background-color: rgb(242, 242, 242);
+  position: relative;
+}
+</style>
+
+</head>
+<body>
+  <div id="button_group">
+    <button id="button1">버튼1</button>
+    <button>버튼2</button>
+    <button>버튼3</button>
+  </div>
+  <div class="action_area search_area">
+    <div class="left">
+      <div id="search_area" class="divsearch"></div>
+    </div>
+  </div>
+  <div id="list_area" style="height: 800px; overflow: auto"></div>
+
+  <!-- <script type="module" src="../js/grid.js"></script> -->
+  <script src="../js/grid.js" defer></script>
+  <script src="../js/renderers.js" defer></script>
+  <script src="../js/gridSearch.js" defer></script>
+  <script type="text/javascript">
+    document.addEventListener("DOMContentLoaded", function(event) {
+      
+      var grid = initGrid();
+      var gridSearch = initGridSearch(grid.option.columnOptions);
+
+      addEventListeners(grid, gridSearch);
+
+      search(grid, gridSearch);
+    });
+    
+    function search(grid, gridSearch) {
+      
+      grid.setSearchForm(gridSearch.getSearchFormData());
+      grid.search();
+    }
+    
+    function initGrid() {
+      var option = {
+        columnOptions: [
+          FirstGrid.makeColumnOption("time", "time", 180, Renderers.timeItemRender)
+          , FirstGrid.makeColumnOption("cswitch_name", "switch", 50)
+          , FirstGrid.makeColumnOption("port_name", "port", 50)
+          , FirstGrid.makeColumnOption("name", "type", 140)
+          , FirstGrid.makeColumnOption("protocol", "protocol", 60)
+          , FirstGrid.makeColumnOption("src_mac", "sourceMac", 120)
+          , FirstGrid.makeColumnOption("dst_mac", "destinationMac", 120)
+          , FirstGrid.makeColumnOption("src_ip", "sourceIp", 110)
+          , FirstGrid.makeColumnOption("dst_ip", "destinationIp", 110)
+          , FirstGrid.makeColumnOption("count", "count", 50)
+          , FirstGrid.makeColumnOption("action", "action", 50)
+          , FirstGrid.makeColumnOption("state", "status", 50)
+          , FirstGrid.makeColumnOption("timatrix_event_id", "timatrixEventId", 50)
+        ]
+      };
+      option.url = '../mok/data.json';
+      var grid = new FirstGrid.Grid(document.getElementById("list_area"), option);
+      grid.init();
+
+      var sortOptions = [{"field": "time", "sort": FirstGrid.SORT.DESC}];
+      grid.setSort(sortOptions);
+
+      return grid;
+    }
+    
+    function addEventListeners(grid, gridSearch) {
+      document.getElementById("button1").addEventListener("click", function() {
+        search(grid, gridSearch);
+      });
+
+      gridSearch.addListener("gridSearch-submit", function() {
+        search(grid, gridSearch);
+      });
+    }
+
+    function initGridSearch(columnOptions) {
+      var gridSearch = new GridSearch.GridSearch(document.getElementById("search_area"), {"columnOptions": columnOptions});
+      gridSearch.init();
+
+      return gridSearch;
+    }
+  </script>
+</body>
+</html>
