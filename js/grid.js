@@ -150,7 +150,7 @@ FirstGrid.makeColumnOption = function(field, displayName, width, renderer) {
   }
 
   function setScrollEvent() {
-    var _this = this;
+    const _this = this;
     this.$list_area.addEventListener("scroll", function(e) {
       let $ths = _this.$list_area.getElementsByTagName("thead")[0].getElementsByTagName("th");
       for (let index = 0; index < $ths.length; index++) {
@@ -443,8 +443,8 @@ FirstGrid.FirstGridColumn = function(option) {
   }
   
   function onClickTh() {
-    var currentSort = Number(this.dataset.sort);
-    var newSort = (currentSort + 1) % 3;
+    const currentSort = Number(this.dataset.sort);
+    const newSort = (currentSort + 1) % 3;
     this.dataset.sort = newSort;
     this.dispatchEvent(new Event("gridColumn-sort"));
   }
