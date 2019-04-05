@@ -4,8 +4,16 @@ if (typeof FirstGrid === "undefined") {
   console.error("namespace duplication!!! - FirstGrid");
 }
 
+/** static 변수 */
+
+// sort constatnt
 FirstGrid.SORT = {ASC: 1, DESC: 2};
 
+/** static 함수 */
+
+/**
+ * Object 가 필수 property 를 가지고 있는가 체크
+ */
 FirstGrid.checkObjectValues = function(object, options) {
   for (let index = 0; index < options.length; index++) {
     const option = options[index];
@@ -25,6 +33,9 @@ FirstGrid.checkObjectValues = function(object, options) {
   return true;
 }
 
+/**
+ * 칼럼 옵션 Object 생성
+ */
 FirstGrid.makeColumnOption = function(field, displayName, width, renderer) {
   let defaultRenderer = function(v) {
     return v;
@@ -38,11 +49,17 @@ FirstGrid.makeColumnOption = function(field, displayName, width, renderer) {
   return result;
 }
 
-FirstGrid.Grid = function($list_area, option) {
+/**
+ * Grid 클래스
+ * @param {Element} $list_area 테이블이 들어갈 영역 div
+ * @param {Object} option 옵션
+ */
+ FirstGrid.Grid = function($list_area, option) {
   
-  isRending = null;
-  scrollEventId = null;
+  isRending = null; // 랜딩 중 다른 요청이 들어오는 것을 방지
+  scrollEventId = null; // 스크롤 이벤트가 중복으로 이뤄지는 것을 방지
   gridDatas = [];
+  // default 옵션
   this.option = {
     "fetchOptions": {
       "method": "POST"
@@ -59,8 +76,8 @@ FirstGrid.Grid = function($list_area, option) {
     }
     , "totalCount": 0
   };
-  this.$list_area = $list_area;
-  Object.assign(this.option, option);
+  this.$list_area = $list_area; // div 영역
+  Object.assign(this.option, option); // 인자 option 과 병합
   
   this.init = function() {
     const _this = this;
@@ -68,15 +85,15 @@ FirstGrid.Grid = function($list_area, option) {
     this.$list_area.innerHTML = null;
     this.option.listeners = {};
 
-    let $docfrag = document.createDocumentFragment();
+    let $docfrag = document.createDocumentFragment(); // vDOM 생성
     let $table = document.createElement("table");
     $table.className = this.option.table.className;
     let $tbody = document.createElement("tbody");
-    $tbody.addEventListener("click", function(e) {
+    $tbody.addEventListener("click", function(e) {  // row 클릭 이벤트를 tbody 로 받는다
       onTbodyClick.call(_this, e);
     });
 
-    addColgroupAndThead($table, this.option);
+    addColgroupAndThead($table, this.option); // GridColumn 생성
     $table.appendChild($tbody);
     $docfrag.appendChild($table);
     this.$list_area.appendChild($docfrag);
@@ -84,6 +101,11 @@ FirstGrid.Grid = function($list_area, option) {
     setScrollEvent.call(this);
   }
   
+  /**
+   * init 에서 받은 옵션의 columnOptions 기준으로 GridColumn 을 생성하여 table 에 append 함
+   * @param {Element} $table 테이블
+   * @param {Object} option 옵션
+   */
   function addColgroupAndThead($table, option) {
     let $colgroup = document.createElement("colgroup");
     let $thead = document.createElement("thead");
@@ -91,11 +113,11 @@ FirstGrid.Grid = function($list_area, option) {
     $thead.appendChild($tr);
     for (let index = 0; index < option.columnOptions.length; index++) {
       const columnOption = option.columnOptions[index];
-      const gridColumn = new FirstGrid.FirstGridColumn(columnOption);
+      const gridColumn = new FirstGrid.FirstGridColumn(columnOption); // 칼럼 클래스 생성
       gridColumn.init();
       
       const $th = gridColumn.getThead();
-      $th.addEventListener("gridColumn-sort", function() {
+      $th.addEventListener("gridColumn-sort", function() { // 칼럼 타이틀 클릭시 GridColumn에서 발생되는 이벤트
         onColumnSortEvent(gridColumn, option);
       });
       option.gridColumns.push(gridColumn);
@@ -110,7 +132,7 @@ FirstGrid.Grid = function($list_area, option) {
 
   function onColumnSortEvent(gridColumn, option) {
     const $th = gridColumn.getThead();
-    const sort = $th.dataset.sort;
+    const sort = $th.dataset.sort; // sort 속성은 GridColumn 에서 추가 됨
     const currentOrder = option.searchOption.order;
     const fieldName = gridColumn.option.field;
     switch (Number(sort)) {
@@ -118,6 +140,7 @@ FirstGrid.Grid = function($list_area, option) {
         currentOrder.splice($th.dataset.order, 1);
         break;
       case 1:
+        $th.dataset.order = currentOrder.length; // order 속성은 Grid 에서 컨트롤 함
         currentOrder.push({"field": fieldName, "sort": sort});
         break;
       default:
@@ -127,13 +150,12 @@ FirstGrid.Grid = function($list_area, option) {
   }
 
   function setScrollEvent() {
-    
     var _this = this;
     this.$list_area.addEventListener("scroll", function(e) {
       let $ths = _this.$list_area.getElementsByTagName("thead")[0].getElementsByTagName("th");
       for (let index = 0; index < $ths.length; index++) {
         const $th = $ths[index];
-        $th.style.top = _this.$list_area.scrollTop + "px";
+        $th.style.top = _this.$list_area.scrollTop + "px"; // 칼럼 타이틀 영역 상단고정
       }
       if (isRending != null) {
         return;
@@ -145,9 +167,8 @@ FirstGrid.Grid = function($list_area, option) {
       scrollEventId = setTimeout(function() { onScrollEvent.call(_this) }, 500); // 다시 0.5 타임아웃 후 onScrollEvent() 펑션 실행
     });
   }
-      
+  
   function onScrollEvent() {
-    
     const scrollTop = this.$list_area.scrollTop;
     const docHeight = this.$list_area.scrollHeight;
     const winHeight = this.$list_area.clientHeight;
@@ -161,11 +182,10 @@ FirstGrid.Grid = function($list_area, option) {
   }
   
   function onTbodyClick(e) {
-    
+    // 상위 노드를 찾아주는 메소드(jQuery의 closest 유사)
     function querySearchParent(ele, selector) {
       let $docfrag = document.createDocumentFragment();
-      let cur = e.target.parentNode;
-      let result;
+      let cur = ele.parentNode;
       while (cur != document) {
         $docfrag.appendChild(cur.cloneNode());
         if ($docfrag.querySelector(selector) != null) {
@@ -178,17 +198,33 @@ FirstGrid.Grid = function($list_area, option) {
     
     this.emit("grid-tdClick", e.target);
     const $tr = querySearchParent(e.target, "tr");
-    this.emit("grid-trClick", $tr, gridDatas[$tr.dataset.index]);
+    this.emit("grid-trClick", $tr, gridDatas[$tr.dataset.index]); // 클릭 된 row 의 element 와 data 를 리턴
   }
   
-  this.getSearchOption = function() {
-    return this.option.searchOption;
+  /**
+   * @returns {FormData} sort 와 order 정보가 담긴 formData 
+   */
+  this.getSortOptions = function() {
+    if (this.option.searchOption.order.length == 0) {
+      return null; // 오더 정보가 없다면 null 을 리턴
+    }
+
+    const result = new FormData();
+    result.set("sortOptions", JSON.stringify(this.option.searchOption.order));
+    return result;
   }
   
+  /**
+   * @returns 현재 조회되고 있는 실제 검색옵션
+   * 여기서 페이지옵션만 추가되어 조회됨
+   */
   this.getSearchForm = function() {
     return this.option.searchOption.search;
   }
 
+  /**
+   * @param {FormData} searchForm 외부에서 검색 조건을 조합하여 주입
+   */
   this.setSearchForm = function(searchForm) {
     this.option.searchOption.search = searchForm;
   }
@@ -211,7 +247,6 @@ FirstGrid.Grid = function($list_area, option) {
     this.getDatas();
   }
   
-  // To-do
   this.getDatas = function() {
     if (isRending != null) {
       return;
@@ -225,7 +260,7 @@ FirstGrid.Grid = function($list_area, option) {
     const param = new URLSearchParams(formData);
     this.option.fetchOptions.body = param;
     
-    // fetch(this.option.url, this.option.fetchOptions)
+    // fetch(this.option.url, this.option.fetchOptions) // POST 메소드: formdata 를 전달하여 조회
     const fetchUrl = this.option.url.replace("{s}", this.option.searchOption.pageSize);
     fetch(fetchUrl)
     .then(function(response) {
@@ -236,7 +271,7 @@ FirstGrid.Grid = function($list_area, option) {
       _this.option.totalCount = json.total_elements;
       _this.addRows(json.content);
       //////////////////////////////////
-      _this.emit("grid-getDataAfter");
+      _this.emit("grid-getDataAfter"); // addrow 를 호출하기 위한 데이터를 외부에서 만들어야 함
     });
   }
 
@@ -247,14 +282,14 @@ FirstGrid.Grid = function($list_area, option) {
     
     const $tbody= this.$list_area.getElementsByTagName("tbody")[0];
     let gridColumns = this.option.gridColumns;
-    let cache = document.createDocumentFragment();
+    let cache = document.createDocumentFragment(); // vDom
     let counter = 0;
-    const everyNth = 10;
+    const everyNth = 10; // 10줄씩 렌딩
     const gridDatasLength = gridDatas.length;
     
-    isRending = setInterval(function () {
+    isRending = setInterval(function () { // 무한루프
       
-      if (counter == datas.length) {
+      if (counter == datas.length) { // 모든 row를 다 돌았다면
         clearInterval(isRending);
         $tbody.appendChild(cache);
         isRending = null;
@@ -262,7 +297,7 @@ FirstGrid.Grid = function($list_area, option) {
         return;
       }
       
-      if (counter % everyNth === 0) {
+      if (counter % everyNth === 0) { // 지정 된 갯수만큼 모이면 렌딩 후 vDom 초기화
         $tbody.appendChild(cache);
         cache = document.createDocumentFragment();
       }
@@ -270,11 +305,12 @@ FirstGrid.Grid = function($list_area, option) {
       const rowData = datas[counter];
       const $tr = document.createElement("tr");
       // $tr.append("<td>" + (counter + calcIdx) +"</td>")
+      // datas(조회 된 데이터) 에서 counter(인덱스) 의 rowData 를 꺼내어 columnOption 에 맞춰 tr 생성
       for (let index = 0; index < gridColumns.length; index++) {
         const gridColumn = gridColumns[index];
         const $td = document.createElement("td");
         if (gridColumn.option.renderer != undefined && typeof gridColumn.option.renderer === 'function') {
-          const content = gridColumn.option.renderer(rowData[gridColumn.option.field], rowData);
+          const content = gridColumn.option.renderer(rowData[gridColumn.option.field], rowData); // renderer
           $td.innerHTML = content;
         } else {
           $td.innerHTML = rowData[gridColumn.option.field];
@@ -282,12 +318,16 @@ FirstGrid.Grid = function($list_area, option) {
         $tr.dataset.index = gridDatasLength + counter;
         $tr.appendChild($td);
       }
-      cache.appendChild($tr);
+      cache.appendChild($tr); // vDom 에 append tr
       
       counter++;
     }, 0);
   }
 
+  /**
+   * @param {String} fieldName 필드 이름
+   * @returns {FirstGridColumn} 그리드칼럼 객체
+   */
   this.getGridColumnByField = function(fieldName) {
     const gridColumns = this.option.gridColumns;
     for (let index = 0; index < gridColumns.length; index++) {
@@ -299,7 +339,10 @@ FirstGrid.Grid = function($list_area, option) {
     return null;
   }
 
-  // sortOption = {field = "", sort = 1/2};
+  /**
+   * 초기화 할때(또는 그 외) 수동으로 적용 될 sort 설정
+   * @param {Object} sortOption {field = "", sort = 1/2}
+   */
   this.setSort = function(sortOptions) {
     this.option.searchOption.order = [];
     let newOrder = [];
@@ -323,7 +366,9 @@ FirstGrid.Grid = function($list_area, option) {
     this.option.searchOption.order = newOrder;
   }
 
+  /////////////////////////////////////////
   // event emitter.. To-do 상속해야 됨??
+  /////////////////////////////////////////
   this.addListener = function(label, callback) {
     if (!this.option.listeners.hasOwnProperty(label)) {
       this.option.listeners[label] = [];
@@ -363,6 +408,9 @@ FirstGrid.Grid = function($list_area, option) {
   }
 }
 
+/**
+ * GridColumn 클래스
+ */
 FirstGrid.FirstGridColumn = function(option) {
   
   this.option = {};
@@ -373,12 +421,14 @@ FirstGrid.FirstGridColumn = function(option) {
     createThead(this.option);
   }
 
+  // 칼럼그룹 만들기
   createColumn = function(option) {
     const $col = document.createElement("col");
     $col.style.width = option.width + "px";
     option.$col = $col;
   }
   
+  // 칼럼 헤드 만들기
   createThead = function(option) {
     const $th = document.createElement("th");
     const $span = document.createElement("span");
@@ -386,7 +436,7 @@ FirstGrid.FirstGridColumn = function(option) {
     $span.className = "icon data_sort";
     $th.appendChild($span);
     $th.dataset.sort = 0;
-    $th.addEventListener("click", function() {
+    $th.addEventListener("click", function() { // sort 를 위한 칼럼 헤드 클릭 이벤트
       onClickTh.call(this);
     });
     option.$th = $th;

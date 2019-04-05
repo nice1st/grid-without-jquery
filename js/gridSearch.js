@@ -4,6 +4,11 @@ if (typeof GridSearch === "undefined") {
   console.error("namespace duplication!!! - GridSearch");
 }
 
+/**
+ * GridSearch 클래스
+ * @param {Element} $search_area 서치옵션이 들어갈 영역 div
+ * @param {Object} option 옵션
+ */
 GridSearch.GridSearch = function($search_area, option) {
   
   this.option = {};
@@ -16,7 +21,7 @@ GridSearch.GridSearch = function($search_area, option) {
 
     let $docfrag = document.createDocumentFragment();
     
-    const $inputGlobalSearch = document.createElement("input");
+    const $inputGlobalSearch = document.createElement("input"); // 전체 조건 input
     $inputGlobalSearch.type = "text";
     $inputGlobalSearch.placeholder = "Search...";
     $docfrag.appendChild($inputGlobalSearch);
@@ -36,7 +41,7 @@ GridSearch.GridSearch = function($search_area, option) {
     //////////////////////////////////////////////////////////////
     $docfrag.appendChild($a);
     
-    const $divLayerArea = document.createElement("div");
+    const $divLayerArea = document.createElement("div"); // layer 로 숨겨질 div
     $divLayerArea.className = "layer_st";
     const $dynaminSearchForm = document.createElement("form");
     $divLayerArea.appendChild($dynaminSearchForm);
@@ -44,15 +49,18 @@ GridSearch.GridSearch = function($search_area, option) {
     
     this.$search_area.appendChild($docfrag);
     
-    this.addSearchFormChildren($dynaminSearchForm);
+    this.addSearchFormChildren($dynaminSearchForm); // 칼럼별 조건 input 생성
     addEventListeners.call(this);
   }
   
+  /**
+   * @param {form} $dynaminSearchForm 조건 input 이 추가 될 form
+   */
   this.addSearchFormChildren = function($dynaminSearchForm) {
     
     let $docfrag = document.createDocumentFragment();
     const columnOptions = this.option.columnOptions;
-    for (let index = 0; index < columnOptions.length; index++) {
+    for (let index = 0; index < columnOptions.length; index++) { // 칼럼 옵션 리스트를 불러옴
       const columnOption = columnOptions[index];
       $docfrag.appendChild(makeSearchCondition(columnOption));
     }
@@ -60,6 +68,7 @@ GridSearch.GridSearch = function($search_area, option) {
     $dynaminSearchForm.appendChild($docfrag);
   }
 
+  // 칼럼옵션의 filed와 displayName으로 input 생성
   function makeSearchCondition(columnOption) {
 
     const $dl = document.createElement("dl");
@@ -86,12 +95,14 @@ GridSearch.GridSearch = function($search_area, option) {
   function addEventListeners() {
     const _this = this;
     
+    // enter key 처리
     function pressEnter(e) {
       if (e.keyCode === 13) {
-        _this.emit("gridSearch-submit");
+        _this.emit("gridSearch-submit"); // 이벤트 발생. 외부에서 이벤트를 받아 Grid에 search() 명령을 수행하도록 함
       }
     }
     
+    // 전체/칼럼별 input 수정 시 상대 input 초기화를 위한 이벤트
     const $allInput = _this.$search_area.querySelector(":scope input");
     const $form = _this.$search_area.querySelector(":scope form");
     const $inputs = $form.querySelectorAll("input");
@@ -113,6 +124,10 @@ GridSearch.GridSearch = function($search_area, option) {
     }
   }
 
+  /**
+   * 외부에서 검색조건 input을 채워넣음
+   * @param {FormData} formData formData 의 key 와 input 의 name(columnOption.field) 을 맞춰야 됨
+   */
   this.setSearchFormData = function(formData) {
     const $form = this.$search_area.querySelector(":scope form");
     const $inputs = $form.querySelectorAll("input");
@@ -123,16 +138,18 @@ GridSearch.GridSearch = function($search_area, option) {
     }
   }
   
+  /**
+   * @returns {FormData} 현재 input 들에 입력 된 내용을 돌려줌
+   */
   this.getSearchFormData = function() {
     const $form = this.$search_area.querySelector(":scope form");
-    const formData = new FormData($form);
+    const formData = new FormData($form); // 칼럼 검색조건 form 에 입력 된 데이터를 가져옴
     const $allInput = this.$search_area.querySelector(":scope input");
     const isSearchAll = $allInput.value != "";
-    if (isSearchAll) {
+    if (isSearchAll) { // 전체 검색인 경우
       const keys = formData.keys();
       let key = keys.next();
       while (!key.done) {
-        
         formData.set(key.value, $allInput.value);
         key = keys.next();
       }
@@ -148,7 +165,9 @@ GridSearch.GridSearch = function($search_area, option) {
     return formData;
   }
 
+  /////////////////////////////////////////
   // event emitter.. To-do 상속해야 됨??
+  /////////////////////////////////////////
   this.addListener = function(label, callback) {
     if (!this.option.listeners.hasOwnProperty(label)) {
       this.option.listeners[label] = [];

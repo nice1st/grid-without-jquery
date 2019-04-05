@@ -1,6 +1,6 @@
 if (typeof Renderers === "undefined") {
   var Renderers = (function() {
-    return {
+    return { // 이곳에 등록하세요 value: td 값, object: tr 값
       countRender: function(value, object) {
         if (value == undefined) {
           return "";
