@@ -48,7 +48,11 @@ thead th {
     
     function initGrid() {
       var option = {
-        columnOptions: [
+        url: '../mok/data.{s}.json'
+        , searchOption: {
+          pageSize: 0
+        }
+        , columnOptions: [
           FirstGrid.makeColumnOption("time", "time", 180, Renderers.timeItemRender)
           , FirstGrid.makeColumnOption("name", "name", 50)
           , FirstGrid.makeColumnOption("port_name", "port", 50)
@@ -63,7 +67,6 @@ thead th {
           , FirstGrid.makeColumnOption("timatrix_event_id", "timatrixEventId", 50)
         ]
       };
-      option.url = '../mok/data.json';
       var grid = new FirstGrid.Grid(document.getElementById("list_area"), option);
       grid.init();
 

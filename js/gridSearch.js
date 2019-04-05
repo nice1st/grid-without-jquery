@@ -23,20 +23,32 @@ GridSearch.GridSearch = function($search_area, option) {
     
     const $a = document.createElement("a");
     $a.href = "#";
+
+    //여기있으면 안되는 코드/////////////////////////////////////////////
+    $a.addEventListener("mousedown", function() {
+      if ($("~.layer_st", this).css("display") === "block") {
+        $("~.layer_st", this).slideUp("fast");
+      } else {
+        $(".layer_st").slideUp("fast");
+        $("~.layer_st", this).slideDown("fast");
+      }
+    });
+    //////////////////////////////////////////////////////////////
     $docfrag.appendChild($a);
     
     const $divLayerArea = document.createElement("div");
+    $divLayerArea.className = "layer_st";
     const $dynaminSearchForm = document.createElement("form");
     $divLayerArea.appendChild($dynaminSearchForm);
     $docfrag.appendChild($divLayerArea);
     
     this.$search_area.appendChild($docfrag);
     
-    this.addSearchFormChChildren($dynaminSearchForm);
-    this.addEventListeners();
+    this.addSearchFormChildren($dynaminSearchForm);
+    addEventListeners.call(this);
   }
   
-  this.addSearchFormChChildren = function($dynaminSearchForm) {
+  this.addSearchFormChildren = function($dynaminSearchForm) {
     
     let $docfrag = document.createDocumentFragment();
     const columnOptions = this.option.columnOptions;
@@ -71,30 +83,58 @@ GridSearch.GridSearch = function($search_area, option) {
     return $dl;
   }
 
-  this.addEventListeners = function() {
+  function addEventListeners() {
     const _this = this;
-    const $inputs = this.$search_area.querySelectorAll("input");
+    
+    function pressEnter(e) {
+      if (e.keyCode === 13) {
+        _this.emit("gridSearch-submit");
+      }
+    }
+    
+    const $allInput = _this.$search_area.querySelector(":scope input");
+    const $form = _this.$search_area.querySelector(":scope form");
+    const $inputs = $form.querySelectorAll("input");
+    
+    $allInput.addEventListener("keypress", function(e) {
+      for (let index = 0; index < $inputs.length; index++) {
+        const $input = $inputs[index];
+        $input.value = "";
+      }
+      pressEnter(e);
+    });
+    
     for (let index = 0; index < $inputs.length; index++) {
       const $input = $inputs[index];
       $input.addEventListener("keypress", function(e) {
-        if (e.keyCode === 13) {
-          _this.emit("gridSearch-submit");
-        }
+        $allInput.value = "";
+        pressEnter(e);
       });
     }
   }
 
+  this.setSearchFormData = function(formData) {
+    const $form = this.$search_area.querySelector(":scope form");
+    const $inputs = $form.querySelectorAll("input");
+    
+    for (let index = 0; index < $inputs.length; index++) {
+      const $input = $inputs[index];
+      $input.value = formData.get($input.name);
+    }
+  }
+  
   this.getSearchFormData = function() {
     const $form = this.$search_area.querySelector(":scope form");
     const formData = new FormData($form);
     const $allInput = this.$search_area.querySelector(":scope input");
     const isSearchAll = $allInput.value != "";
-    formData.set("search_all", isSearchAll);
     if (isSearchAll) {
-      formData.set("search_all", true);
-      for (let index = 0; index < formData.keys.length; index++) {
-        const key = formData.keys[index];
-        formData.set(key, $allInput.value);
+      const keys = formData.keys();
+      let key = keys.next();
+      while (!key.done) {
+        
+        formData.set(key.value, $allInput.value);
+        key = keys.next();
       }
     } else { // 추가 작업이 필요한가???
       // const $formInputs = this.$search_area.querySelectorAll("form input");
@@ -103,6 +143,8 @@ GridSearch.GridSearch = function($search_area, option) {
       //   console.log($input);
       // }
     }
+    
+    formData.set("search_all", isSearchAll);
     return formData;
   }
 

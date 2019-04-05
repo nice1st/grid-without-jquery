@@ -1,0 +1,20 @@
+{
+    "total_elements": 10
+    , "content": [
+        {
+            "time": 1551163692000,
+            "name": "name",
+            "port_name": "port_name",
+            "protocol": "protocol",
+            "src_mac": "src_mac",
+            "dst_mac": "dst_mac",
+            "src_ip": "src_ip",
+            "dst_ip": "dst_ip",
+            "count": 15429,
+            "action": "action",
+            "state": "state",
+            "timatrix_event_id": "timatrix_event_id",
+            "event_type_weight": 1
+        }
+    ]
+}

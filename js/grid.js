@@ -40,10 +40,17 @@ FirstGrid.makeColumnOption = function(field, displayName, width, renderer) {
 
 FirstGrid.Grid = function($list_area, option) {
   
-  isRending = false;
+  isRending = null;
   scrollEventId = null;
+  gridDatas = [];
   this.option = {
-    "gridColumns": []
+    "fetchOptions": {
+      "method": "POST"
+    }
+    , "gridColumns": []
+    , "table": {
+      "className": ""
+    }
     , "searchOption": {
       "pageSize": 100
       , "currentPage": 0
@@ -56,18 +63,25 @@ FirstGrid.Grid = function($list_area, option) {
   Object.assign(this.option, option);
   
   this.init = function() {
+    const _this = this;
+    
     this.$list_area.innerHTML = null;
+    this.option.listeners = {};
 
     let $docfrag = document.createDocumentFragment();
     let $table = document.createElement("table");
+    $table.className = this.option.table.className;
     let $tbody = document.createElement("tbody");
+    $tbody.addEventListener("click", function(e) {
+      onTbodyClick.call(_this, e);
+    });
 
     addColgroupAndThead($table, this.option);
     $table.appendChild($tbody);
     $docfrag.appendChild($table);
     this.$list_area.appendChild($docfrag);
     
-    setScrollEvent(this);
+    setScrollEvent.call(this);
   }
   
   function addColgroupAndThead($table, option) {
@@ -99,54 +113,76 @@ FirstGrid.Grid = function($list_area, option) {
     const sort = $th.dataset.sort;
     const currentOrder = option.searchOption.order;
     const fieldName = gridColumn.option.field;
-    switch (sort) {
+    switch (Number(sort)) {
       case 0:
         currentOrder.splice($th.dataset.order, 1);
-        for (let index = 0; index < currentOrder.length; index++) {
-          if (currentOrder[index] == fieldName) {
-            currentOrder.slice(index, 1);
-            break;
-          }
-        }
         break;
       case 1:
-        currentOrder.push(fieldName);
+        currentOrder.push({"field": fieldName, "sort": sort});
         break;
       default:
         break;
     }
-    console.log(currentOrder);
-    console.log(option.searchOption.order);
+    option.searchOption.order = currentOrder;
   }
 
-  function setScrollEvent(_this) {
+  function setScrollEvent() {
     
-    _this.$list_area.addEventListener("scroll", function(e) {
+    var _this = this;
+    this.$list_area.addEventListener("scroll", function(e) {
       let $ths = _this.$list_area.getElementsByTagName("thead")[0].getElementsByTagName("th");
       for (let index = 0; index < $ths.length; index++) {
         const $th = $ths[index];
         $th.style.top = _this.$list_area.scrollTop + "px";
       }
-      if (_this.option.totalCount < (_this.option.currentPage * _this.option.pageSize)) { // 총량보다 페이지가 초과하면 조회하지 않음
+      if (isRending != null) {
+        return;
+      }
+      if (_this.option.totalCount < ((_this.option.searchOption.currentPage + 1) * _this.option.searchOption.pageSize)) { // 총량보다 페이지가 초과하면 조회하지 않음
         return;
       }
       clearTimeout(scrollEventId); // 요청이 오면 타임아웃 초기화
-      scrollEventId = setTimeout(onScrollEvent, 500, _this); // 다시 0.5 타임아웃 후 onScrollEvent() 펑션 실행
+      scrollEventId = setTimeout(function() { onScrollEvent.call(_this) }, 500); // 다시 0.5 타임아웃 후 onScrollEvent() 펑션 실행
     });
   }
       
-  function onScrollEvent(_this) {
-      
-    const scrollTop = _this.$list_area.scrollTop;
-    const docHeight = _this.$list_area.scrollHeight;
-    const winHeight = _this.$list_area.clientHeight;
+  function onScrollEvent() {
+    
+    const scrollTop = this.$list_area.scrollTop;
+    const docHeight = this.$list_area.scrollHeight;
+    const winHeight = this.$list_area.clientHeight;
     const scrollPercent = (scrollTop) / (docHeight - winHeight);
     const scrollPercentRounded = Math.round(scrollPercent*100);
     
     if (scrollPercentRounded > 80) { // 스크롤의 위치가 80% 넘으면
-      _this.option.searchOption.currentPage++;
-      _this.getDatas();
+      this.option.searchOption.currentPage++;
+      this.getDatas();
     }
+  }
+  
+  function onTbodyClick(e) {
+    
+    function querySearchParent(ele, selector) {
+      let $docfrag = document.createDocumentFragment();
+      let cur = e.target.parentNode;
+      let result;
+      while (cur != document) {
+        $docfrag.appendChild(cur.cloneNode());
+        if ($docfrag.querySelector(selector) != null) {
+          return cur;
+        }
+        cur = cur.parentNode;
+      }
+      return null;
+    }
+    
+    this.emit("grid-tdClick", e.target);
+    const $tr = querySearchParent(e.target, "tr");
+    this.emit("grid-trClick", $tr, gridDatas[$tr.dataset.index]);
+  }
+  
+  this.getSearchOption = function() {
+    return this.option.searchOption;
   }
   
   this.getSearchForm = function() {
@@ -158,6 +194,10 @@ FirstGrid.Grid = function($list_area, option) {
   }
 
   this.search = function() {
+    if (isRending != null) {
+      return;
+    }
+    
     if (this.option.url == undefined || this.option.url == "") {
       console.warn("FirstGrid.Grid.option.url is null");
       return;
@@ -165,48 +205,60 @@ FirstGrid.Grid = function($list_area, option) {
 
     const $tbody= this.$list_area.getElementsByTagName("tbody")[0];
     $tbody.innerHTML = null;
+    gridDatas = [];
 
+    this.option.searchOption.currentPage = 0;
     this.getDatas();
   }
   
   // To-do
   this.getDatas = function() {
-    let _this = this;
-
-    const param = this.getSearchForm();
-    console.log(param);
-    fetch(this.option.url)
+    if (isRending != null) {
+      return;
+    }
+    const _this = this;
+    
+    const formData = this.getSearchForm();
+    formData.set("page", this.option.searchOption.currentPage);
+    formData.set("pageSize", this.option.searchOption.pageSize);
+    
+    const param = new URLSearchParams(formData);
+    this.option.fetchOptions.body = param;
+    
+    // fetch(this.option.url, this.option.fetchOptions)
+    const fetchUrl = this.option.url.replace("{s}", this.option.searchOption.pageSize);
+    fetch(fetchUrl)
     .then(function(response) {
       return response.json();
     })
     .then(function(json) {
-      //////// test code /////////
-      _this.option.totalCount = json.length;
-      let startIndex = _this.option.searchOption.currentPage * _this.option.searchOption.pageSize;
-      let datas = json.slice(startIndex, (startIndex + _this.option.searchOption.pageSize));
-      _this.addRows(datas);
+      //////// Custom Function /////////
+      _this.option.totalCount = json.total_elements;
+      _this.addRows(json.content);
+      //////////////////////////////////
+      _this.emit("grid-getDataAfter");
     });
   }
 
   this.addRows = function(datas) {
-    const $tbody= this.$list_area.getElementsByTagName("tbody")[0];
-    let gridColumns = [];
-    for (let index = 0; index < this.option.gridColumns.length; index++) {
-      const gridColumn = this.option.gridColumns[index];
-      gridColumns.push(gridColumn);
+    if (isRending != null) {
+      return;
     }
-
+    
+    const $tbody= this.$list_area.getElementsByTagName("tbody")[0];
+    let gridColumns = this.option.gridColumns;
     let cache = document.createDocumentFragment();
     let counter = 0;
     const everyNth = 10;
+    const gridDatasLength = gridDatas.length;
     
-    let rendingTimer = null;
-    rendingTimer = setInterval(function () {
+    isRending = setInterval(function () {
       
       if (counter == datas.length) {
-        clearInterval(rendingTimer);
+        clearInterval(isRending);
         $tbody.appendChild(cache);
-        isRending = false;
+        isRending = null;
+        gridDatas = gridDatas.concat(datas);
         return;
       }
       
@@ -227,6 +279,7 @@ FirstGrid.Grid = function($list_area, option) {
         } else {
           $td.innerHTML = rowData[gridColumn.option.field];
         }
+        $tr.dataset.index = gridDatasLength + counter;
         $tr.appendChild($td);
       }
       cache.appendChild($tr);
@@ -248,7 +301,7 @@ FirstGrid.Grid = function($list_area, option) {
 
   // sortOption = {field = "", sort = 1/2};
   this.setSort = function(sortOptions) {
-    this.option.searchOption.order = {};
+    this.option.searchOption.order = [];
     let newOrder = [];
     for (let index = 0; index < sortOptions.length; index++) {
       const sortOption = sortOptions[index];
@@ -265,7 +318,47 @@ FirstGrid.Grid = function($list_area, option) {
       }
       
       gridColumn.getThead().dataset.sort = sortOption.sort;
-      newOrder.push(sortOption.field);
+      newOrder.push(sortOption);
+    }
+    this.option.searchOption.order = newOrder;
+  }
+
+  // event emitter.. To-do 상속해야 됨??
+  this.addListener = function(label, callback) {
+    if (!this.option.listeners.hasOwnProperty(label)) {
+      this.option.listeners[label] = [];
+    }
+    this.option.listeners[label].push(callback);
+  }
+
+  this.removeListener = function(label, callback) {
+    const listeners = this.option.listeners[label];
+    let i = -1;
+    for (let index = 0; index < listeners.length; index++) {
+      const listener = listeners[index];
+      if (typeof listener == "function" && listener === callback) {
+        i = index;
+        break;
+      }
+    }
+    
+    if (i > -1) {
+      listeners.splice(i, 1);
+      this.option.listeners[label] = listeners;
+      return true;
+    } else {
+      return false;
+    }
+  }
+  
+  this.emit = function(label, ...arg) {
+    const listeners = this.option.listeners[label];
+    
+    if (listeners && listeners.length > 0) {
+      for (let index = 0; index < listeners.length; index++) {
+        const listener = listeners[index];
+        listener(...arg);
+      }
     }
   }
 }
@@ -281,26 +374,29 @@ FirstGrid.FirstGridColumn = function(option) {
   }
 
   createColumn = function(option) {
-    let $col = document.createElement("col");
+    const $col = document.createElement("col");
     $col.style.width = option.width + "px";
     option.$col = $col;
   }
   
   createThead = function(option) {
-    let $th = document.createElement("th");
+    const $th = document.createElement("th");
+    const $span = document.createElement("span");
     $th.innerText = option.displayName;
+    $span.className = "icon data_sort";
+    $th.appendChild($span);
     $th.dataset.sort = 0;
     $th.addEventListener("click", function() {
-      onClickTh(this);
+      onClickTh.call(this);
     });
     option.$th = $th;
   }
   
-  function onClickTh($th) {
-    var currentSort = Number($th.dataset.sort);
+  function onClickTh() {
+    var currentSort = Number(this.dataset.sort);
     var newSort = (currentSort + 1) % 3;
-    $th.dataset.sort = newSort;
-    $th.dispatchEvent(new Event("gridColumn-sort"));
+    this.dataset.sort = newSort;
+    this.dispatchEvent(new Event("gridColumn-sort"));
   }
   
   this.getColumn = function() {
