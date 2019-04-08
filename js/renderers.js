@@ -25,6 +25,15 @@ if (typeof Renderers === "undefined") {
         }
         return strHtml;
       }
+      , checkbox: function(value, object, column) {
+        const $input = document.createElement("input");
+        $input.type = "checkbox";
+        $input.addEventListener("change", function(e) {
+          column.emit("gridColumn-checkbox-change", e.target);
+        });
+
+        return $input;
+      }
     }
   })();
 } else {

@@ -15,12 +15,12 @@ thead th {
 <body>
   <div id="button_group">
     <button id="button1">버튼1</button>
-    <button>버튼2</button>
+    <button id="button2">버튼2</button>
     <button>버튼3</button>
   </div>
   <div class="action_area search_area">
     <div class="left">
-      <div id="search_area" class="divsearch"></div>
+      <div id="search_area" class="divsearch" style="display: none;"></div>
     </div>
   </div>
   <div id="list_area" style="height: 800px; overflow: auto"></div>
@@ -49,6 +49,9 @@ thead th {
     function initGrid() {
       var option = {
         url: '../mok/data.{s}.json'
+        , checkbox: {
+          enable: true
+        }
         , searchOption: {
           pageSize: 0
         }
@@ -79,6 +82,9 @@ thead th {
     function addEventListeners(grid, gridSearch) {
       document.getElementById("button1").addEventListener("click", function() {
         search(grid, gridSearch);
+      });
+      document.getElementById("button2").addEventListener("click", function() {
+        console.log(grid.getCheckedRowData());
       });
 
       gridSearch.addListener("gridSearch-submit", function() {
