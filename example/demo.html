@@ -52,9 +52,11 @@ thead th {
         , checkbox: {
           enable: true
         }
+        , multipleSort: false
         , searchOption: {
           pageSize: 0
         }
+        , showIndex: true
         , columnOptions: [
           FirstGrid.makeColumnOption("time", "time", 180, Renderers.timeItemRender)
           , FirstGrid.makeColumnOption("name", "name", 50)
@@ -84,11 +86,14 @@ thead th {
         search(grid, gridSearch);
       });
       document.getElementById("button2").addEventListener("click", function() {
-        console.log(grid.getCheckedRowData());
       });
-
+      
       gridSearch.addListener("gridSearch-submit", function() {
         search(grid, gridSearch);
+      });
+      
+      grid.addListener("grid-checkbox-change", function() {
+        console.log(grid.getCheckedRowData());
       });
     }
 

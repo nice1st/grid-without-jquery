@@ -74,19 +74,21 @@ FirstGrid.querySearchParent = function(ele, selector) {
  */
  FirstGrid.Grid = function($list_area, option) {
   
-  isRending = null; // 랜딩 중 다른 요청이 들어오는 것을 방지
-  scrollEventId = null; // 스크롤 이벤트가 중복으로 이뤄지는 것을 방지
-  gridDatas = [];
+  let isRending = null; // 랜딩 중 다른 요청이 들어오는 것을 방지
+  let scrollEventId = null; // 스크롤 이벤트가 중복으로 이뤄지는 것을 방지
+  let gridDatas = [];
   // default 옵션
   this.option = {
-    "fetchOptions": {
+    "fetchOptions": { // 현재 getDatas 함수가 POST 만 가능
       "method": "POST"
     }
-    , "gridColumns": []
-    , "checkbox": {
+    , "gridColumns": [] // 외부에서 입력받을 칼럼의 속성
+    , "checkbox": { // 체크박스 사용 유무
       "enable": false
       , "filter": "To-Do"
     }
+    , "showIndex": false // 인덱스 no 사용 유무
+    , "multipleSort": false // 다중 정렬 사용 유무
     , "table": {
       "className": ""
     }
@@ -98,6 +100,7 @@ FirstGrid.querySearchParent = function(ele, selector) {
     }
     , "totalCount": 0
   };
+
   this.$list_area = $list_area; // div 영역
   Object.assign(this.option, option); // 인자 option 과 병합
   
@@ -115,29 +118,37 @@ FirstGrid.querySearchParent = function(ele, selector) {
       onTbodyClick.call(_this, e);
     });
 
-    createColgroupAndThead($table, this.option); // GridColumn 생성
+    createColgroupAndThead($table, this); // GridColumn 생성
     $table.appendChild($tbody);
     $docfrag.appendChild($table);
     this.$list_area.appendChild($docfrag);
     
     setScrollEvent.call(this);
   }
-  
+
   /**
    * init 에서 받은 옵션의 columnOptions 기준으로 GridColumn 을 생성하여 table 에 append 함
    * @param {Element} $table 테이블
    * @param {Object} option 옵션
    */
-  function createColgroupAndThead($table, option) {
+  function createColgroupAndThead($table, _this) {
+    const option = _this.option;
     let $colgroup = document.createElement("colgroup");
     let $thead = document.createElement("thead");
     let $tr = document.createElement("tr");
     $thead.appendChild($tr);
 
     if (option.checkbox.enable == true) { // 체크 박스
-      const checkbocColumn = createCheckboxColumn($table);
+      const checkbocColumn = createCheckboxColumn($table, _this);
       option.gridColumns.push(checkbocColumn);
-      addColgroupAndThead(option, $colgroup, $tr, checkbocColumn);
+      addColgroupAndThead(_this, $colgroup, $tr, checkbocColumn);
+    }
+    
+    if (option.showIndex == true) { // Number 칼럼
+      const noColumn = new FirstGrid.FirstGridColumn(FirstGrid.makeColumnOption("grid-no", "No", 30, Renderers.number));
+      noColumn.init();
+      option.gridColumns.push(noColumn);
+      addColgroupAndThead(_this, $colgroup, $tr, noColumn);
     }
 
     for (let index = 0; index < option.columnOptions.length; index++) {
@@ -145,26 +156,26 @@ FirstGrid.querySearchParent = function(ele, selector) {
       const gridColumn = new FirstGrid.FirstGridColumn(columnOption); // 칼럼 클래스 생성
       gridColumn.init();
       option.gridColumns.push(gridColumn);
-      addColgroupAndThead(option, $colgroup, $tr, gridColumn);
+      addColgroupAndThead(_this, $colgroup, $tr, gridColumn);
     }
     
     $table.appendChild($colgroup);
     $table.appendChild($thead);
   }
   
-  function createCheckboxColumn($table) {
+  function createCheckboxColumn($table, _this) {
     const $input = document.createElement("input"); // 체크박스 생성
     $input.type = "checkbox";
 
     const columnOption = FirstGrid.makeColumnOption("grid-checkbox", $input, 30, Renderers.checkbox); // checkbox 렌더러에서 이벤트 받아야 됨
     const gridColumn = new FirstGrid.FirstGridColumn(columnOption); // gridColmn 객체 생성
     gridColumn.option.ignoreEvent = true;
+    gridColumn.init();
 
     $input.addEventListener("change", function(e) {
       gridColumn.emit("gridColumn-checkbox-change", e.target);
     });
-    
-    gridColumn.init();
+
     gridColumn.addListener("gridColumn-checkbox-change", function(target) { // girdColumn 객체로 전체/행 checkbox 의 이벤트를 수신 함
       const $tbody = $table.querySelector("tbody");
       const $checkboxes = $tbody.querySelectorAll("input[type='checkbox']");
@@ -179,38 +190,60 @@ FirstGrid.querySearchParent = function(ele, selector) {
           $input.checked = $checkboxes.length == $checkedboxes.length;
         }
       }
+
+      _this.emit("grid-checkbox-change");
     });
     
     return gridColumn; // girdColumn 객체 리턴
   }
   
-  function addColgroupAndThead(option, $colgroup, $tr, gridColumn) {
+  function addColgroupAndThead(_this, $colgroup, $tr, gridColumn) {
     const $th = gridColumn.getThead();
     $th.addEventListener("gridColumn-sort", function() { // 칼럼 타이틀 클릭시 GridColumn에서 발생되는 이벤트
-      onColumnSortEvent(gridColumn, option);
+      onColumnSortEvent(gridColumn, _this);
     });
   
     $colgroup.appendChild(gridColumn.getColumn());
     $tr.appendChild($th);
   }
 
-  function onColumnSortEvent(gridColumn, option) {
+  function onColumnSortEvent(gridColumn, _this) {
+    const option = _this.option;
     const $th = gridColumn.getThead();
     const sort = $th.dataset.sort; // sort 속성은 GridColumn 에서 추가 됨
-    const currentOrder = option.searchOption.order;
+    let orders = option.searchOption.order;
     const fieldName = gridColumn.option.field;
     switch (Number(sort)) {
       case 0:
-        currentOrder.splice($th.dataset.order, 1);
+        if (option.multipleSort == true) {
+          orders.splice($th.dataset.order, 1);
+          for (let index = $th.dataset.order; index < orders.length; index++) {
+            const order = orders[index];
+            const gridColumn = _this.getGridColumnByField(order.field);
+            gridColumn.getThead().dataset.order = index;
+          }
+          delete $th.dataset.order;
+        }
         break;
       case 1:
-        $th.dataset.order = currentOrder.length; // order 속성은 Grid 에서 컨트롤 함
-        currentOrder.push({"field": fieldName, "sort": sort});
+        if (option.multipleSort == true) {
+          $th.dataset.order = orders.length; // order 속성은 Grid 에서 컨트롤 함
+        } else {
+          for (let index = 0; index < orders.length; index++) {
+            const order = orders[index];
+            const gridColumn = _this.getGridColumnByField(order.field);
+            if ($th != gridColumn.getThead()) {
+              gridColumn.getThead().dataset.sort = 0;
+            }
+          }
+          orders = [];
+        }
+        orders.push({"field": fieldName, "sort": sort});
         break;
       default:
         break;
     }
-    option.searchOption.order = currentOrder;
+    option.searchOption.order = orders;
   }
 
   function setScrollEvent() {
@@ -358,8 +391,8 @@ FirstGrid.querySearchParent = function(ele, selector) {
       }
       
       const rowData = datas[counter];
+      rowData.grid_index = gridDatasLength + counter;
       const $tr = document.createElement("tr");
-      // $tr.append("<td>" + (counter + calcIdx) +"</td>")
       // datas(조회 된 데이터) 에서 counter(인덱스) 의 rowData 를 꺼내어 columnOption 에 맞춰 tr 생성
       for (let index = 0; index < gridColumns.length; index++) {
         const gridColumn = gridColumns[index];
@@ -378,7 +411,7 @@ FirstGrid.querySearchParent = function(ele, selector) {
         }
         $tr.appendChild($td);
       }
-      $tr.dataset.index = gridDatasLength + counter;
+      $tr.dataset.index = rowData.grid_index;
       cache.appendChild($tr); // vDom 에 append tr
       
       counter++;
@@ -422,6 +455,9 @@ FirstGrid.querySearchParent = function(ele, selector) {
       }
       
       gridColumn.getThead().dataset.sort = sortOption.sort;
+      if (this.option.multipleSort == true) {
+        gridColumn.getThead().dataset.order = newOrder.length;
+      }
       newOrder.push(sortOption);
     }
     this.option.searchOption.order = newOrder;
@@ -500,14 +536,14 @@ FirstGrid.FirstGridColumn = function(option) {
   }
 
   // 칼럼그룹 만들기
-  createColumn = function(option) {
+  function createColumn(option) {
     const $col = document.createElement("col");
     $col.style.width = option.width + "px";
     option.$col = $col;
   }
   
   // 칼럼 헤드 만들기
-  createThead = function(option) {
+  function createThead(option) {
     const $th = document.createElement("th");
     const $span = document.createElement("span");
     

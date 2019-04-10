@@ -34,6 +34,9 @@ if (typeof Renderers === "undefined") {
 
         return $input;
       }
+      , number: function(value, object, column) {
+        return object.grid_index + 1;
+      }
     }
   })();
 } else {
