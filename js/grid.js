@@ -146,6 +146,7 @@ FirstGrid.querySearchParent = function(ele, selector) {
     
     if (option.showIndex == true) { // Number 칼럼
       const noColumn = new FirstGrid.FirstGridColumn(FirstGrid.makeColumnOption("grid-no", "No", 30, Renderers.number));
+      noColumn.option.ignoreEvent = true;
       noColumn.init();
       option.gridColumns.push(noColumn);
       addColgroupAndThead(_this, $colgroup, $tr, noColumn);
@@ -223,6 +224,8 @@ FirstGrid.querySearchParent = function(ele, selector) {
             gridColumn.getThead().dataset.order = index;
           }
           delete $th.dataset.order;
+        } else {
+          orders = [];
         }
         break;
       case 1:
@@ -240,10 +243,18 @@ FirstGrid.querySearchParent = function(ele, selector) {
         }
         orders.push({"field": fieldName, "sort": sort});
         break;
+      case 2:
+        if (option.multipleSort == true) {
+          orders[$th.dataset.order].sort = sort;
+        } else {
+          orders[0].sort = sort;
+        }
+        break;
       default:
         break;
     }
     option.searchOption.order = orders;
+    _this.emit("grid-sortChange");
   }
 
   function setScrollEvent() {
@@ -318,7 +329,8 @@ FirstGrid.querySearchParent = function(ele, selector) {
 
   this.search = function() {
     if (isRending != null) {
-      return;
+      clearInterval(isRending);
+      isRending = null;
     }
     
     if (this.option.url == undefined || this.option.url == "") {

@@ -95,6 +95,10 @@ thead th {
       grid.addListener("grid-checkbox-change", function() {
         console.log(grid.getCheckedRowData());
       });
+      
+      grid.addListener("grid-sortChange", function() {
+        search(grid, gridSearch);
+      });
     }
 
     function initGridSearch(columnOptions) {
