@@ -419,9 +419,7 @@ FirstGrid.querySearchParent = function(ele, selector) {
             $td.innerHTML = content;
           }
         } else {
-          if (rowData.hasOwnProperty(gridColumn.option.field)) {
-            $td.innerHTML = rowData[gridColumn.option.field];
-          }
+          $td.innerHTML = rowData[gridColumn.option.field];
         }
         $tr.appendChild($td);
       }
