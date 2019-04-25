@@ -165,34 +165,50 @@ FirstGrid.querySearchParent = function(ele, selector) {
   }
   
   function createCheckboxColumn($table, _this) {
-    const $input = document.createElement("input"); // 체크박스 생성
-    $input.type = "checkbox";
+    const $totalInput = document.createElement("input"); // 체크박스 생성
+    $totalInput.type = "checkbox";
 
-    const columnOption = FirstGrid.makeColumnOption("grid-checkbox", $input, 30, Renderers.checkbox); // checkbox 렌더러에서 이벤트 받아야 됨
+    const columnOption = FirstGrid.makeColumnOption("grid-checkbox", $totalInput, 30, Renderers.checkbox); // checkbox 렌더러에서 이벤트 받아야 됨
     const gridColumn = new FirstGrid.FirstGridColumn(columnOption); // gridColmn 객체 생성
     gridColumn.option.ignoreEvent = true;
     gridColumn.init();
 
-    $input.addEventListener("change", function(e) {
-      gridColumn.emit("gridColumn-checkbox-change", e.target);
+    $totalInput.addEventListener("change", function(e) {
+      gridColumn.emit("gridColumn-checkedChanged", e);
     });
 
-    gridColumn.addListener("gridColumn-checkbox-change", function(target) { // girdColumn 객체로 전체/행 checkbox 의 이벤트를 수신 함
+    gridColumn.addListener("gridColumn-checkedChanged", function(e) { // girdColumn 객체로 전체/행 checkbox 의 이벤트를 수신 함
+      const $target = e.target;
       const $tbody = $table.querySelector("tbody");
       const $checkboxes = $tbody.querySelectorAll("input[type='checkbox']");
       if ($checkboxes.length > 0) {
-        if (target == $input) { // 전체
+        const $lastCheckbox = $tbody.querySelector("input[type='checkbox'].lastCheck");
+        if ($lastCheckbox) {
+          $lastCheckbox.classList.remove("lastCheck");
+        }
+        if ($target == $totalInput) { // 전체
           for (let index = 0; index < $checkboxes.length; index++) {
             const $checkbox = $checkboxes[index];
-            $checkbox.checked = target.checked;
+            $checkbox.checked = $target.checked;
           }
         } else { // 행
+          if (_this.isShiftKey) {
+            const start = Math.min(gridColumn.getColumn().dataset.lastCheckIndex, $target.dataset.index);
+            const end = Math.max(gridColumn.getColumn().dataset.lastCheckIndex, $target.dataset.index) + 1;
+            for (let index = start; index < end; index++) {
+              const $tmpCheckbox = $checkboxes[index];
+              $tmpCheckbox.checked = $target.checked;
+            }
+          }
+
           const $checkedboxes = $tbody.querySelectorAll("input[type='checkbox']:checked");
-          $input.checked = $checkboxes.length == $checkedboxes.length;
+          $totalInput.checked = $checkboxes.length == $checkedboxes.length;
+          $target.classList.add("lastCheck");
+          gridColumn.getColumn().dataset.lastCheckIndex = $target.dataset.index;
         }
       }
 
-      _this.emit("grid-checkbox-change");
+      _this.emit("grid-selectedChanged");
     });
     
     return gridColumn; // girdColumn 객체 리턴
@@ -290,6 +306,7 @@ FirstGrid.querySearchParent = function(ele, selector) {
   }
   
   function onTbodyClick(e) {
+    this.isShiftKey = e.shiftKey;
     const $td = FirstGrid.querySearchParent(e.target, "td");
     if ($td.dataset.ignoreEvent == true) {
       return;
@@ -412,7 +429,7 @@ FirstGrid.querySearchParent = function(ele, selector) {
         $td.dataset.ignoreEvent = gridColumn.option.ignoreEvent;
 
         if (gridColumn.option.renderer != undefined && typeof gridColumn.option.renderer === 'function') {
-          const content = gridColumn.option.renderer(rowData[gridColumn.option.field], rowData, gridColumn); // renderer
+          const content = gridColumn.option.renderer(rowData[gridColumn.option.field], rowData, gridColumn, rowData.grid_index); // renderer
           if (content instanceof HTMLElement) {
             $td.appendChild(content);
           } else {

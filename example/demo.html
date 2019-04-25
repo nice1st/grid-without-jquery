@@ -92,7 +92,7 @@ thead th {
         search(grid, gridSearch);
       });
       
-      grid.addListener("grid-checkbox-change", function() {
+      grid.addListener("grid-selectedChanged", function() {
         console.log(grid.getCheckedRowData());
       });
       

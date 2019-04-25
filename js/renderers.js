@@ -25,11 +25,12 @@ if (typeof Renderers === "undefined") {
         }
         return strHtml;
       }
-      , checkbox: function(value, object, column) {
+      , checkbox: function(value, object, column, index) {
         const $input = document.createElement("input");
         $input.type = "checkbox";
+        $input.dataset.index = index;
         $input.addEventListener("change", function(e) {
-          column.emit("gridColumn-checkbox-change", e.target);
+          column.emit("gridColumn-checkedChanged", e);
         });
 
         return $input;
