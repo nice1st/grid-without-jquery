@@ -182,28 +182,28 @@ FirstGrid.querySearchParent = function(ele, selector) {
       const $tbody = $table.querySelector("tbody");
       const $checkboxes = $tbody.querySelectorAll("input[type='checkbox']");
       if ($checkboxes.length > 0) {
-        const $lastCheckbox = $tbody.querySelector("input[type='checkbox'].lastCheck");
-        if ($lastCheckbox) {
-          $lastCheckbox.classList.remove("lastCheck");
-        }
+        // const $lastCheckbox = $tbody.querySelector("input[type='checkbox'].lastCheck");
+        // if ($lastCheckbox) {
+        //   $lastCheckbox.classList.remove("lastCheck");
+        // }
         if ($target == $totalInput) { // 전체
           for (let index = 0; index < $checkboxes.length; index++) {
             const $checkbox = $checkboxes[index];
             $checkbox.checked = $target.checked;
           }
         } else { // 행
-          if (_this.isShiftKey) {
+          if (_this.isShiftKey) { // press shift
             const start = Math.min(gridColumn.getColumn().dataset.lastCheckIndex, $target.dataset.index);
             const end = Math.max(gridColumn.getColumn().dataset.lastCheckIndex, $target.dataset.index) + 1;
             for (let index = start; index < end; index++) {
               const $tmpCheckbox = $checkboxes[index];
-              $tmpCheckbox.checked = $target.checked;
+              $tmpCheckbox.checked = $target.checked; // 마지막 클릭된 노드부터 checked 갱신
             }
           }
 
           const $checkedboxes = $tbody.querySelectorAll("input[type='checkbox']:checked");
           $totalInput.checked = $checkboxes.length == $checkedboxes.length;
-          $target.classList.add("lastCheck");
+          // $target.classList.add("lastCheck"); // 마지막으로 클릭 된 체크박스가 무엇인지 ui 로 표현하기 위한 class (필요하다면)
           gridColumn.getColumn().dataset.lastCheckIndex = $target.dataset.index;
         }
       }
@@ -306,7 +306,7 @@ FirstGrid.querySearchParent = function(ele, selector) {
   }
   
   function onTbodyClick(e) {
-    this.isShiftKey = e.shiftKey;
+    this.isShiftKey = e.shiftKey; // 클릭 이벤트의 shift 를 저장함, checkbox.change 이벤트보다 먼저 수행 됨
     const $td = FirstGrid.querySearchParent(e.target, "td");
     if ($td.dataset.ignoreEvent == true) {
       return;
@@ -557,7 +557,9 @@ FirstGrid.querySearchParent = function(ele, selector) {
  */
 FirstGrid.FirstGridColumn = function(option) {
   
-  this.option = {};
+  this.option = {
+    "ignoreEvent": false
+  };
   Object.assign(this.option, option);
 
   this.init = function() {
