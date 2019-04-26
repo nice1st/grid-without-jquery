@@ -394,10 +394,10 @@ FirstGrid.querySearchParent = function(ele, selector) {
     })
     .then(function(json) {
       //////// Custom Function /////////
-      _this.option.totalCount = json.total_elements;
-      _this.addRows(json.content);
+      // _this.option.totalCount = json.total_elements;
+      // _this.addRows(json.content);
       //////////////////////////////////
-      _this.emit("grid-getDataAfter"); // addrow 를 호출하기 위한 데이터를 외부에서 만들어야 함
+      _this.emit("grid-getDataAfter", json); // addrow 를 호출하기 위한 데이터를 외부에서 만들어야 함
     });
   }
 

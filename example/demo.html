@@ -104,6 +104,11 @@ thead th {
         search(grid, gridSearch);
       });
       
+      grid.addListener("grid-getDataAfter", function(json) {
+        grid.option.totalCount = json.total_elements;
+        grid.addRows(json.content);
+      });
+
       grid.addListener("grid-selectedChanged", function() {
         console.log(grid.getCheckedRowData());
       });
