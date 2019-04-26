@@ -82,17 +82,20 @@ FirstGrid.querySearchParent = function(ele, selector) {
     "fetchOptions": { // 현재 getDatas 함수가 POST 만 가능
       "method": "POST"
     }
-    , "gridColumns": [] // 외부에서 입력받을 칼럼의 속성
+    , "columnOptions": [] // 외부에서 입력받을 칼럼의 속성
+    , "gridColumns": [] // 생성 된 칼럼들
     , "checkbox": { // 체크박스 사용 유무
       "enable": false
       , "filter": "To-Do"
     }
     , "showIndex": false // 인덱스 no 사용 유무
     , "multipleSort": false // 다중 정렬 사용 유무
-    , "table": {
+    , "table": { // <table> 관련 속성
       "className": ""
+      , "width": "100%"
+      , "scrollXEnable": false
     }
-    , "searchOption": {
+    , "searchOption": { // 검색조건 관련
       "pageSize": 100
       , "currentPage": 0
       , "order": []
@@ -112,7 +115,8 @@ FirstGrid.querySearchParent = function(ele, selector) {
 
     let $docfrag = document.createDocumentFragment(); // vDOM 생성
     let $table = document.createElement("table");
-    $table.className = this.option.table.className;
+    $table.className = "fGrid " + this.option.table.className;
+    $table.style.width = this.option.table.width;
     let $tbody = document.createElement("tbody");
     $tbody.addEventListener("click", function(e) {  // row 클릭 이벤트를 tbody 로 받는다
       onTbodyClick.call(_this, e);
@@ -138,22 +142,21 @@ FirstGrid.querySearchParent = function(ele, selector) {
     let $tr = document.createElement("tr");
     $thead.appendChild($tr);
 
-    if (option.checkbox.enable == true) { // 체크 박스
+    if (option.checkbox.enable == true) { // 체크 박스 칼럼
       const checkbocColumn = createCheckboxColumn($table, _this);
       option.gridColumns.push(checkbocColumn);
       addColgroupAndThead(_this, $colgroup, $tr, checkbocColumn);
     }
     
     if (option.showIndex == true) { // Number 칼럼
-      const noColumn = new FirstGrid.FirstGridColumn(FirstGrid.makeColumnOption("grid-no", "No", 30, Renderers.number));
-      noColumn.option.ignoreEvent = true;
-      noColumn.init();
+      const noColumn = createNumberColumn();
       option.gridColumns.push(noColumn);
       addColgroupAndThead(_this, $colgroup, $tr, noColumn);
     }
 
     for (let index = 0; index < option.columnOptions.length; index++) {
       const columnOption = option.columnOptions[index];
+      columnOption.minWidthEnable = option.table.scrollXEnable;
       const gridColumn = new FirstGrid.FirstGridColumn(columnOption); // 칼럼 클래스 생성
       gridColumn.init();
       option.gridColumns.push(gridColumn);
@@ -212,6 +215,13 @@ FirstGrid.querySearchParent = function(ele, selector) {
     });
     
     return gridColumn; // girdColumn 객체 리턴
+  }
+
+  function createNumberColumn() {
+    const noColumn = new FirstGrid.FirstGridColumn(FirstGrid.makeColumnOption("grid-no", "No", 30, Renderers.number));
+    noColumn.option.ignoreEvent = true;
+    noColumn.init();
+    return noColumn;
   }
   
   function addColgroupAndThead(_this, $colgroup, $tr, gridColumn) {
@@ -428,18 +438,24 @@ FirstGrid.querySearchParent = function(ele, selector) {
         const $td = document.createElement("td");
         $td.dataset.ignoreEvent = gridColumn.option.ignoreEvent;
 
-        if (gridColumn.option.renderer != undefined && typeof gridColumn.option.renderer === 'function') {
-          const content = gridColumn.option.renderer(rowData[gridColumn.option.field], rowData, gridColumn, rowData.grid_index); // renderer
-          if (content instanceof HTMLElement) {
-            $td.appendChild(content);
-          } else {
-            $td.innerHTML = content;
-          }
-        } else {
-          if (rowData.hasOwnProperty(gridColumn.option.field)) {
-            $td.innerHTML = rowData[gridColumn.option.field];
-          }
+        let content = "";
+        if (rowData.hasOwnProperty(gridColumn.option.field)) { // 기본 값
+          content = rowData[gridColumn.option.field];
         }
+        if (gridColumn.option.renderer != undefined && typeof gridColumn.option.renderer === 'function') { // 렌더러가 있으면
+          content = gridColumn.option.renderer(content, rowData, gridColumn, rowData.grid_index); // renderer
+        }
+        if (content instanceof HTMLElement) { // 테그 일 경우
+          $td.appendChild(content);
+        } else { // 아닐 경우 (이거 한번에 해주는 펑션없나..)
+          $td.innerHTML = content;
+        }
+        $td.addEventListener("mouseenter", function(e) {
+          if (this.offsetWidth < this.scrollWidth) {
+            this.title = content;
+          }
+        });
+
         $tr.appendChild($td);
       }
       $tr.dataset.index = rowData.grid_index;
@@ -578,6 +594,9 @@ FirstGrid.FirstGridColumn = function(option) {
   // 칼럼 헤드 만들기
   function createThead(option) {
     const $th = document.createElement("th");
+    if (option.minWidthEnable) { // 횡스크롤 옵션
+      $th.style.minWidth = option.width + "px";
+    }
     const $span = document.createElement("span");
     
     if (option.displayName instanceof HTMLElement) {

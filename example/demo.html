@@ -5,6 +5,15 @@
 <title>Insert title here</title>
 
 <style>
+table {
+  width: 100%;
+}
+table td {
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  max-width: 0px;
+}
 thead th {
   background-color: rgb(242, 242, 242);
   position: relative;
@@ -57,6 +66,9 @@ thead th {
           pageSize: 0
         }
         , showIndex: true
+        , table: {
+          scrollXEnable: false
+        }
         , columnOptions: [
           FirstGrid.makeColumnOption("time", "time", 180, Renderers.timeItemRender)
           , FirstGrid.makeColumnOption("name", "name", 50)
