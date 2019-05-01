@@ -18,6 +18,9 @@ thead th {
   background-color: rgb(242, 242, 242);
   position: relative;
 }
+thead th:hover {
+    background-color: #e6e6e6 !important;
+}
 </style>
 
 </head>
@@ -25,7 +28,7 @@ thead th {
   <div id="button_group">
     <button id="button1">버튼1</button>
     <button id="button2">버튼2</button>
-    <button>버튼3</button>
+    <button id="button3">버튼3</button>
   </div>
   <div class="action_area search_area">
     <div class="left">
@@ -68,20 +71,23 @@ thead th {
         , showIndex: true
         , table: {
           scrollXEnable: false
+          , columnDrag: {
+            enable: true
+          }
         }
         , columnOptions: [
-          FirstGrid.makeColumnOption("time", "time", 180, Renderers.timeItemRender)
-          , FirstGrid.makeColumnOption("name", "name", 50)
-          , FirstGrid.makeColumnOption("port_name", "port", 50)
-          , FirstGrid.makeColumnOption("protocol", "protocol", 60)
-          , FirstGrid.makeColumnOption("src_mac", "sourceMac", 120)
-          , FirstGrid.makeColumnOption("dst_mac", "destinationMac", 120)
-          , FirstGrid.makeColumnOption("src_ip", "sourceIp", 110)
-          , FirstGrid.makeColumnOption("dst_ip", "destinationIp", 110)
-          , FirstGrid.makeColumnOption("count", "count", 50)
-          , FirstGrid.makeColumnOption("action", "action", 50)
-          , FirstGrid.makeColumnOption("state", "status", 50)
-          , FirstGrid.makeColumnOption("timatrix_event_id", "timatrixEventId", 50)
+          FirstGrid.makeColumnOption("time", "time", 180, true, Renderers.timeItemRender)
+          , FirstGrid.makeColumnOption("name", "name", 50, false)
+          , FirstGrid.makeColumnOption("port_name", "port", 50, true)
+          , FirstGrid.makeColumnOption("protocol", "protocol", 60, true)
+          , FirstGrid.makeColumnOption("src_mac", "sourceMac", 120, true)
+          , FirstGrid.makeColumnOption("dst_mac", "destinationMac", 120, true)
+          , FirstGrid.makeColumnOption("src_ip", "sourceIp", 110, true)
+          , FirstGrid.makeColumnOption("dst_ip", "destinationIp", 110, true)
+          , FirstGrid.makeColumnOption("count", "count", 50, true)
+          , FirstGrid.makeColumnOption("action", "action", 50, true)
+          , FirstGrid.makeColumnOption("state", "status", 50, true)
+          , FirstGrid.makeColumnOption("timatrix_event_id", "timatrixEventId", 50, true)
         ]
       };
       var grid = new FirstGrid.Grid(document.getElementById("list_area"), option);
@@ -98,10 +104,18 @@ thead th {
         search(grid, gridSearch);
       });
       document.getElementById("button2").addEventListener("click", function() {
+        grid.setDisplayColumnByIndex(3, true);
+      });
+      document.getElementById("button3").addEventListener("click", function() {
+        grid.setDisplayColumnByFieldName("name", false);
       });
       
       gridSearch.addListener("gridSearch-submit", function() {
         search(grid, gridSearch);
+      });
+      
+      gridSearch.addListener("gridSearch-change", function() {
+        // To-Do 검색 조건이 변경되었을 때 액션
       });
       
       grid.addListener("grid-getDataAfter", function(json) {
@@ -115,6 +129,10 @@ thead th {
       
       grid.addListener("grid-sortChange", function() {
         search(grid, gridSearch);
+      });
+      
+      grid.addListener("grid-columnChanged", function() {
+        console.log(this);
       });
     }
 

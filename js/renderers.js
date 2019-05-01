@@ -35,8 +35,8 @@ if (typeof Renderers === "undefined") {
 
         return $input;
       }
-      , number: function(value, object, column) {
-        return object.grid_index + 1;
+      , number: function(value, object, column, index) {
+        return index + 1;
       }
     }
   })();

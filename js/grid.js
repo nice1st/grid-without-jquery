@@ -36,7 +36,7 @@ FirstGrid.checkObjectValues = function(object, options) {
 /**
  * 칼럼 옵션 Object 생성
  */
-FirstGrid.makeColumnOption = function(field, displayName, width, renderer) {
+FirstGrid.makeColumnOption = function(field, displayName, width, isShow, renderer) {
   let defaultRenderer = function(v) {
     return v;
   }
@@ -44,6 +44,7 @@ FirstGrid.makeColumnOption = function(field, displayName, width, renderer) {
   result.field = field;
   result.displayName = displayName;
   result.width = width;
+  result.isShow = isShow;
   result.renderer = renderer;
   // result.renderer = renderer == undefined ? defaultRenderer : renderer;
   return result;
@@ -94,6 +95,10 @@ FirstGrid.querySearchParent = function(ele, selector) {
       "className": ""
       , "width": "100%"
       , "scrollXEnable": false
+      , "columnDrag": { // 칼럼 이동
+        "enable": false
+        , "movingColumn": null
+      }
     }
     , "searchOption": { // 검색조건 관련
       "pageSize": 100
@@ -122,7 +127,7 @@ FirstGrid.querySearchParent = function(ele, selector) {
       onTbodyClick.call(_this, e);
     });
 
-    createColgroupAndThead($table, this); // GridColumn 생성
+    createColgroupAndThead.call(this, $table); // GridColumn 생성
     $table.appendChild($tbody);
     $docfrag.appendChild($table);
     this.$list_area.appendChild($docfrag);
@@ -135,32 +140,34 @@ FirstGrid.querySearchParent = function(ele, selector) {
    * @param {Element} $table 테이블
    * @param {Object} option 옵션
    */
-  function createColgroupAndThead($table, _this) {
-    const option = _this.option;
+  function createColgroupAndThead($table) {
+    const option = this.option;
     let $colgroup = document.createElement("colgroup");
     let $thead = document.createElement("thead");
     let $tr = document.createElement("tr");
     $thead.appendChild($tr);
 
     if (option.checkbox.enable == true) { // 체크 박스 칼럼
-      const checkbocColumn = createCheckboxColumn($table, _this);
+      const checkbocColumn = createCheckboxColumn($table, this);
       option.gridColumns.push(checkbocColumn);
-      addColgroupAndThead(_this, $colgroup, $tr, checkbocColumn);
+      addColgroupAndThead.call(this, $colgroup, $tr, checkbocColumn);
     }
     
     if (option.showIndex == true) { // Number 칼럼
       const noColumn = createNumberColumn();
       option.gridColumns.push(noColumn);
-      addColgroupAndThead(_this, $colgroup, $tr, noColumn);
+      addColgroupAndThead.call(this, $colgroup, $tr, noColumn);
     }
 
     for (let index = 0; index < option.columnOptions.length; index++) {
       const columnOption = option.columnOptions[index];
       columnOption.minWidthEnable = option.table.scrollXEnable;
+      columnOption.draggable = option.table.columnDrag.enable;
       const gridColumn = new FirstGrid.FirstGridColumn(columnOption); // 칼럼 클래스 생성
       gridColumn.init();
       option.gridColumns.push(gridColumn);
-      addColgroupAndThead(_this, $colgroup, $tr, gridColumn);
+      addColgroupAndThead.call(this, $colgroup, $tr, gridColumn);
+      addGridColumnEventListener.call(this, gridColumn);
     }
     
     $table.appendChild($colgroup);
@@ -171,7 +178,7 @@ FirstGrid.querySearchParent = function(ele, selector) {
     const $totalInput = document.createElement("input"); // 체크박스 생성
     $totalInput.type = "checkbox";
 
-    const columnOption = FirstGrid.makeColumnOption("grid-checkbox", $totalInput, 30, Renderers.checkbox); // checkbox 렌더러에서 이벤트 받아야 됨
+    const columnOption = FirstGrid.makeColumnOption("grid-checkbox", $totalInput, 30, true, Renderers.checkbox); // checkbox 렌더러에서 이벤트 받아야 됨
     const gridColumn = new FirstGrid.FirstGridColumn(columnOption); // gridColmn 객체 생성
     gridColumn.option.ignoreEvent = true;
     gridColumn.init();
@@ -185,7 +192,7 @@ FirstGrid.querySearchParent = function(ele, selector) {
       const $tbody = $table.querySelector("tbody");
       const $checkboxes = $tbody.querySelectorAll("input[type='checkbox']");
       if ($checkboxes.length > 0) {
-        // const $lastCheckbox = $tbody.querySelector("input[type='checkbox'].lastCheck");
+        // const $lastCheckbox = $tbody.querySelector("input[type='checkbox'].lastCheck"); // 마지막으로 클릭 된 체크박스가 무엇인지 ui 로 표현하기 위한 class (필요하다면)
         // if ($lastCheckbox) {
         //   $lastCheckbox.classList.remove("lastCheck");
         // }
@@ -218,24 +225,65 @@ FirstGrid.querySearchParent = function(ele, selector) {
   }
 
   function createNumberColumn() {
-    const noColumn = new FirstGrid.FirstGridColumn(FirstGrid.makeColumnOption("grid-no", "No", 30, Renderers.number));
+    const noColumn = new FirstGrid.FirstGridColumn(FirstGrid.makeColumnOption("grid-no", "No", 30, true, Renderers.number));
     noColumn.option.ignoreEvent = true;
     noColumn.init();
     return noColumn;
   }
   
-  function addColgroupAndThead(_this, $colgroup, $tr, gridColumn) {
-    const $th = gridColumn.getThead();
-    $th.addEventListener("gridColumn-sort", function() { // 칼럼 타이틀 클릭시 GridColumn에서 발생되는 이벤트
-      onColumnSortEvent(gridColumn, _this);
-    });
-  
+  function addColgroupAndThead($colgroup, $tr, gridColumn) {
     $colgroup.appendChild(gridColumn.getColumn());
-    $tr.appendChild($th);
+    $tr.appendChild(gridColumn.getThead());
+  }
+  
+  function addGridColumnEventListener(gridColumn) {
+    const _this = this;
+    gridColumn.addListener("gridColumn-sort", function() { // 칼럼 타이틀 클릭시 GridColumn에서 발생되는 이벤트
+      onColumnSortEvent.call(_this, gridColumn);
+    });
+    
+    gridColumn.addListener("gridColumn-moveStart", function() { // 칼럼 드래그 시작
+      _this.option.table.columnDrag.movingColumn = this;
+    });
+
+    gridColumn.addListener("gridColumn-move", function() { // 드래그 타겟이 다른 칼럼 위로 올라갔을 때
+      const movingColumn = _this.option.table.columnDrag.movingColumn;
+      if (movingColumn != null && movingColumn != this) {
+        const $movingThead = movingColumn.getThead();
+        const $tr = $movingThead.parentNode;
+        const targetIndex = Array.prototype.slice.call($tr.children).indexOf(this.getThead());
+        $tr.insertBefore($tr.removeChild($movingThead), $tr.children[targetIndex]); // 위치 변경(Title 만)
+      }
+    });
+
+    gridColumn.addListener("gridColumn-moveEnd", function() { // 드래그 종료
+      const movingColumn = _this.option.table.columnDrag.movingColumn;
+      const $movingThead = movingColumn.getThead();
+      const $tr = $movingThead.parentNode;
+      
+      const gridColumns = _this.option.gridColumns;
+      const fromIndex = gridColumns.indexOf(movingColumn);
+      const toIndex = Array.prototype.slice.call($tr.children).indexOf($movingThead);
+      
+      if (fromIndex == toIndex) {
+        return;
+      }
+
+      gridColumns.splice(toIndex, 0, gridColumns.splice(fromIndex, 1)[0]);
+      const $colgroup = _this.$list_area.querySelector("colgroup");
+      $colgroup.insertBefore($colgroup.removeChild($colgroup.children[fromIndex]), $colgroup.children[toIndex]);
+      const $trs = _this.$list_area.querySelector("tbody").querySelectorAll("tr");
+      for (let i = 0; i < $trs.length; i++) {
+        const $tr = $trs[i];
+        $tr.insertBefore($tr.removeChild($tr.children[fromIndex]), $tr.children[toIndex]); // 컨텐츠 위치 변경
+      }
+
+      _this.emit("grid-columnChanged"); // 외부로 이벤트 발생
+    });
   }
 
-  function onColumnSortEvent(gridColumn, _this) {
-    const option = _this.option;
+  function onColumnSortEvent(gridColumn) {
+    const option = this.option;
     const $th = gridColumn.getThead();
     const sort = $th.dataset.sort; // sort 속성은 GridColumn 에서 추가 됨
     let orders = option.searchOption.order;
@@ -246,7 +294,7 @@ FirstGrid.querySearchParent = function(ele, selector) {
           orders.splice($th.dataset.order, 1);
           for (let index = $th.dataset.order; index < orders.length; index++) {
             const order = orders[index];
-            const gridColumn = _this.getGridColumnByField(order.field);
+            const gridColumn = this.getGridColumnByField(order.field);
             gridColumn.getThead().dataset.order = index;
           }
           delete $th.dataset.order;
@@ -260,7 +308,7 @@ FirstGrid.querySearchParent = function(ele, selector) {
         } else {
           for (let index = 0; index < orders.length; index++) {
             const order = orders[index];
-            const gridColumn = _this.getGridColumnByField(order.field);
+            const gridColumn = this.getGridColumnByField(order.field);
             if ($th != gridColumn.getThead()) {
               gridColumn.getThead().dataset.sort = 0;
             }
@@ -280,7 +328,7 @@ FirstGrid.querySearchParent = function(ele, selector) {
         break;
     }
     option.searchOption.order = orders;
-    _this.emit("grid-sortChange");
+    this.emit("grid-sortChange");
   }
 
   function setScrollEvent() {
@@ -430,7 +478,7 @@ FirstGrid.querySearchParent = function(ele, selector) {
       }
       
       const rowData = datas[counter];
-      rowData.grid_index = gridDatasLength + counter;
+      let gridIndex = gridDatasLength + counter;
       const $tr = document.createElement("tr");
       // datas(조회 된 데이터) 에서 counter(인덱스) 의 rowData 를 꺼내어 columnOption 에 맞춰 tr 생성
       for (let index = 0; index < gridColumns.length; index++) {
@@ -443,7 +491,7 @@ FirstGrid.querySearchParent = function(ele, selector) {
           content = rowData[gridColumn.option.field];
         }
         if (gridColumn.option.renderer != undefined && typeof gridColumn.option.renderer === 'function') { // 렌더러가 있으면
-          content = gridColumn.option.renderer(content, rowData, gridColumn, rowData.grid_index); // renderer
+          content = gridColumn.option.renderer(content, rowData, gridColumn, gridIndex); // renderer
         }
         if (content instanceof HTMLElement) { // 테그 일 경우
           $td.appendChild(content);
@@ -456,9 +504,12 @@ FirstGrid.querySearchParent = function(ele, selector) {
           }
         });
 
+        if (!gridColumn.option.isShow) {
+          $td.style.display = "none";
+        }
         $tr.appendChild($td);
       }
-      $tr.dataset.index = rowData.grid_index;
+      $tr.dataset.index = gridIndex;
       cache.appendChild($tr); // vDom 에 append tr
       
       counter++;
@@ -526,6 +577,38 @@ FirstGrid.querySearchParent = function(ele, selector) {
     return result;
   }
 
+  /**
+   * @param {Number} index 조작 할 칼럼의 index (checkbox 와 number 포함)
+   * @param {Boolean} isShow display on/off
+   * @returns "grid-columnChanged event"
+   */
+  this.setDisplayColumnByIndex = function(index, isShow) {
+    this.option.gridColumns[index].isShow(isShow);
+    
+    const $trs = this.$list_area.querySelector("tbody").getElementsByTagName("tr");
+    for (let i = 0; i < $trs.length; i++) {
+      const $tr = $trs[i];
+      $tr.getElementsByTagName("td")[index].style.display = isShow ? "table-cell" : "none"; // 컨텐츠 display 처리
+    }
+    
+    this.emit("grid-columnChanged"); // 외부로 이벤트 발생
+  }
+  
+  /**
+   * @param {String} fieldName 조작 할 칼럼의 field name
+   * @param {Boolean} isShow display on/off
+   * @returns "grid-columnChanged event"
+   */
+  this.setDisplayColumnByFieldName = function(fieldName, isShow) {
+    for (let i = 0; i < this.option.gridColumns.length; i++) {
+      const gridColumn = this.option.gridColumns[i];
+      if (fieldName == gridColumn.option.field) {
+        this.setDisplayColumnByIndex(i, isShow);
+        break;
+      }
+    }
+  }
+
   /////////////////////////////////////////
   // event emitter.. To-do 상속해야 됨??
   /////////////////////////////////////////
@@ -562,7 +645,7 @@ FirstGrid.querySearchParent = function(ele, selector) {
     if (listeners && listeners.length > 0) {
       for (let index = 0; index < listeners.length; index++) {
         const listener = listeners[index];
-        listener(...arg);
+        listener.call(this, ...arg);
       }
     }
   }
@@ -575,52 +658,72 @@ FirstGrid.FirstGridColumn = function(option) {
   
   this.option = {
     "ignoreEvent": false
+    , "isShow": true
+    , "draggable": false
   };
   Object.assign(this.option, option);
 
   this.init = function() {
     this.option.listeners = {};
-    createColumn(this.option);
-    createThead(this.option);
+    createColumn.call(this);
+    createThead.call(this);
+    this.isShow(this.option.isShow);
   }
 
   // 칼럼그룹 만들기
-  function createColumn(option) {
+  function createColumn() {
+    const option = this.option;
     const $col = document.createElement("col");
     $col.style.width = option.width + "px";
+
     option.$col = $col;
   }
   
   // 칼럼 헤드 만들기
-  function createThead(option) {
+  function createThead() {
+    const _this = this;
+    const option = this.option;
     const $th = document.createElement("th");
-    if (option.minWidthEnable) { // 횡스크롤 옵션
-      $th.style.minWidth = option.width + "px";
-    }
-    const $span = document.createElement("span");
+    $th.draggable = option.draggable;
     
     if (option.displayName instanceof HTMLElement) {
       $th.appendChild(option.displayName);
     } else {
       $th.innerText = option.displayName;
     }
+
+    if (option.minWidthEnable) { // 횡스크롤 옵션
+      $th.style.minWidth = option.width + "px";
+    }
     
-    if (option.ignoreEvent != true) {
+    if (option.ignoreEvent != true) { // 이벤트 무시 - 체크박스, 넘버
+      const $span = document.createElement("span");
       $span.className = "icon data_sort";
       $th.appendChild($span);
       $th.dataset.sort = 0;
       $th.addEventListener("click", function() { // sort 를 위한 칼럼 헤드 클릭 이벤트
-        onClickTh.call(this);
+        const currentSort = Number(this.dataset.sort);
+        const newSort = (currentSort + 1) % 3;
+        this.dataset.sort = newSort;
+        _this.emit("gridColumn-sort");
+      });
+  
+      $th.addEventListener("dragstart", function() { // 칼럼 드래그 시작
+        this.style.opacity = 0.4;
+        _this.emit("gridColumn-moveStart"); // Grid 에서 처리
+      });
+
+      $th.addEventListener("dragend", function() { // 칼럼 드래그 종료
+        this.style.opacity = 1;
+        _this.emit("gridColumn-moveEnd"); // Grid 에서 처리
+      });
+      
+      $th.addEventListener("dragenter", function(e) { // 다른 GridColumn 객체가 자신의 객체 위로 올라옴
+        _this.emit("gridColumn-move"); // Grid 에서 처리
       });
     }
+    
     option.$th = $th;
-  }
-  
-  function onClickTh() {
-    const currentSort = Number(this.dataset.sort);
-    const newSort = (currentSort + 1) % 3;
-    this.dataset.sort = newSort;
-    this.dispatchEvent(new Event("gridColumn-sort"));
   }
   
   this.getColumn = function() {
@@ -629,6 +732,21 @@ FirstGrid.FirstGridColumn = function(option) {
 
   this.getThead = function() {
     return this.option.$th;
+  }
+
+  this.isShow = function(isShow) {
+    if (this.option.isShow == isShow) {
+      return;
+    }
+
+    this.option.isShow = isShow;
+    if (isShow) {
+      this.getColumn().style.display = "table-column";
+      this.getThead().style.display = "table-cell";
+    } else {
+      this.getColumn().style.display = "none";
+      this.getThead().style.display = "none";
+    }
   }
   
   /////////////////////////////////////////
@@ -667,7 +785,7 @@ FirstGrid.FirstGridColumn = function(option) {
     if (listeners && listeners.length > 0) {
       for (let index = 0; index < listeners.length; index++) {
         const listener = listeners[index];
-        listener(...arg);
+        listener.call(this, ...arg);
       }
     }
   }

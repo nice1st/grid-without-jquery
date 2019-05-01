@@ -99,6 +99,8 @@ GridSearch.GridSearch = function($search_area, option) {
     function pressEnter(e) {
       if (e.keyCode === 13) {
         _this.emit("gridSearch-submit"); // 이벤트 발생. 외부에서 이벤트를 받아 Grid에 search() 명령을 수행하도록 함
+      } else {
+        _this.emit("gridSearch-change"); // 편집 이벤트 발생 - 검색버튼 하이라이트. Ctlr, Shift, Alt 등의 키도 포함됨
       }
     }
     
