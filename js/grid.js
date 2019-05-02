@@ -95,7 +95,7 @@ FirstGrid.querySearchParent = function(ele, selector) {
       "className": ""
       , "width": "100%"
       , "scrollXEnable": false
-      , "columnDrag": { // 칼럼 이동
+      , "dragColumn": { // 칼럼 이동
         "enable": false
         , "movingColumn": null
       }
@@ -162,7 +162,7 @@ FirstGrid.querySearchParent = function(ele, selector) {
     for (let index = 0; index < option.columnOptions.length; index++) {
       const columnOption = option.columnOptions[index];
       columnOption.minWidthEnable = option.table.scrollXEnable;
-      columnOption.draggable = option.table.columnDrag.enable;
+      columnOption.draggable = option.table.dragColumn.enable;
       const gridColumn = new FirstGrid.FirstGridColumn(columnOption); // 칼럼 클래스 생성
       gridColumn.init();
       option.gridColumns.push(gridColumn);
@@ -243,11 +243,11 @@ FirstGrid.querySearchParent = function(ele, selector) {
     });
     
     gridColumn.addListener("gridColumn-moveStart", function() { // 칼럼 드래그 시작
-      _this.option.table.columnDrag.movingColumn = this;
+      _this.option.table.dragColumn.movingColumn = this;
     });
 
     gridColumn.addListener("gridColumn-move", function() { // 드래그 타겟이 다른 칼럼 위로 올라갔을 때
-      const movingColumn = _this.option.table.columnDrag.movingColumn;
+      const movingColumn = _this.option.table.dragColumn.movingColumn;
       if (movingColumn != null && movingColumn != this) {
         const $movingThead = movingColumn.getThead();
         const $tr = $movingThead.parentNode;
@@ -257,7 +257,7 @@ FirstGrid.querySearchParent = function(ele, selector) {
     });
 
     gridColumn.addListener("gridColumn-moveEnd", function() { // 드래그 종료
-      const movingColumn = _this.option.table.columnDrag.movingColumn;
+      const movingColumn = _this.option.table.dragColumn.movingColumn;
       const $movingThead = movingColumn.getThead();
       const $tr = $movingThead.parentNode;
       
