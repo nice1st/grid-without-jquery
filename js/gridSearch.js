@@ -109,7 +109,7 @@ GridSearch.GridSearch = function($search_area, option) {
     const $form = _this.$search_area.querySelector(":scope form");
     const $inputs = $form.querySelectorAll("input");
     
-    $allInput.addEventListener("keypress", function(e) {
+    $allInput.addEventListener("keydown", function(e) {
       for (let index = 0; index < $inputs.length; index++) {
         const $input = $inputs[index];
         $input.value = "";
@@ -119,7 +119,7 @@ GridSearch.GridSearch = function($search_area, option) {
     
     for (let index = 0; index < $inputs.length; index++) {
       const $input = $inputs[index];
-      $input.addEventListener("keypress", function(e) {
+      $input.addEventListener("keydown", function(e) {
         $allInput.value = "";
         pressEnter(e);
       });
